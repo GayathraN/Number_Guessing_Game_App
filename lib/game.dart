@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:confetti/confetti.dart';
+import 'package:flame_audio/flame_audio.dart';
 
 class GuessingGameScreen extends StatefulWidget {
   final bool singlePlayer;
@@ -23,6 +24,10 @@ class _GuessingGameScreenState extends State<GuessingGameScreen> {
   @override
   void initState() {
     super.initState();
+
+    FlameAudio.bgm.initialize();
+    FlameAudio.bgm.play('bgMusic.mp3', volume: 0.2);
+
     _game = Game();
     _confettiController =
         ConfettiController(duration: const Duration(seconds: 6));
@@ -46,8 +51,10 @@ class _GuessingGameScreenState extends State<GuessingGameScreen> {
         _gameOver = true;
         _game.calculateScore(_currentPlayer);
       });
-      _confettiController.play(); // Trigger confetti animation
-      _showGameOverDialog(message);
+      _confettiController.play();
+      FlameAudio.bgm.stop();
+      FlameAudio.play('win.mp3');
+      _showGameOverDialog(message, true);
     } else {
       int difference = (guess - _game.numberToGuess).abs();
       if (guess < _game.numberToGuess) {
@@ -71,24 +78,23 @@ class _GuessingGameScreenState extends State<GuessingGameScreen> {
             _gameOver = true;
             message = 'Game Over! The number was ${_game.numberToGuess}';
             _game.calculateScore(_currentPlayer);
-            _showGameOverDialog(message);
+            FlameAudio.bgm.stop();
+            FlameAudio.play('gameOver.mp3');
+            _showGameOverDialog(message, false);
           }
         } else {
           if (_currentPlayer == 1) {
             _game.player1Attempts++;
-            if (_game.player1Attempts >= Game.totalAttempts) {
-              _gameOver = true;
-              message = 'Game Over! The number was ${_game.numberToGuess}';
-              _game.calculateScore(_currentPlayer);
-              _showGameOverDialog(message);
-            }
+            if (_game.player1Attempts >= Game.totalAttempts) {}
           } else {
             _game.player2Attempts++;
             if (_game.player2Attempts >= Game.totalAttempts) {
               _gameOver = true;
               message = 'Game Over! The number was ${_game.numberToGuess}';
               _game.calculateScore(_currentPlayer);
-              _showGameOverDialog(message);
+              FlameAudio.bgm.stop();
+              FlameAudio.play('gameOver.mp3');
+              _showGameOverDialog(message, false);
             }
           }
           _currentPlayer = _currentPlayer == 1 ? 2 : 1; // Switch players
@@ -107,20 +113,23 @@ class _GuessingGameScreenState extends State<GuessingGameScreen> {
       _game = Game(); // Create a new game with a new random number
       _currentPlayer = 1; // Reset to player 1
     });
-    Navigator.of(context).pop(); // Close the dialog
+    Navigator.of(context).pop();
+    FlameAudio.bgm.play('bgMusic.mp3', volume: 0.2);
   }
 
-  void _showGameOverDialog(String message) {
+  void _showGameOverDialog(String message, bool isWinner) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(
-            'CONGRATULATIONS!',
-            style: TextStyle(
-              color: Color.fromARGB(255, 219, 121, 29),
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
+          title: Center(
+            child: Text(
+              isWinner ? 'CONGRATULATIONS!' : 'YOU LOST!',
+              style: TextStyle(
+                color: Color.fromARGB(255, 219, 121, 29),
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           content: Column(
@@ -130,7 +139,7 @@ class _GuessingGameScreenState extends State<GuessingGameScreen> {
                 alignment: Alignment.topCenter,
                 child: ConfettiWidget(
                   confettiController: _confettiController,
-                  blastDirection: pi / 2, // Change the blast direction to make confetti fall downwards
+                  blastDirection: pi / 2,
                   emissionFrequency: 0.05,
                   numberOfParticles: 20,
                   blastDirectionality: BlastDirectionality.explosive,
@@ -146,12 +155,14 @@ class _GuessingGameScreenState extends State<GuessingGameScreen> {
                 ),
               ),
               SizedBox(height: 20),
-              Text(message,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  )),
+              Center(
+                child: Text(message,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    )),
+              ),
               SizedBox(height: 20),
               if (widget.singlePlayer)
                 Text('Your Score: ${_game.singlePlayerScore}',
@@ -179,8 +190,8 @@ class _GuessingGameScreenState extends State<GuessingGameScreen> {
                 onPressed: _playAgain,
                 child: Text('Play Again', style: TextStyle(fontSize: 20)),
                 style: ElevatedButton.styleFrom(
-                  primary: Colors.lightBlue, // background color
-                  onPrimary: Colors.white, // text color
+                  primary: Colors.lightBlue,
+                  onPrimary: Colors.white,
                 ),
               ),
             ],
@@ -190,12 +201,47 @@ class _GuessingGameScreenState extends State<GuessingGameScreen> {
     );
   }
 
+  Widget _buildAttemptCounter(String player, int attemptsLeft) {
+    return Column(
+      children: [
+        if (widget.singlePlayer) ...[
+          Text(
+            'Attempts left: ',
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+          ),
+          Text(
+            '$attemptsLeft',
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+          ),
+        ] else ...[
+          Text(player),
+          Text(
+            'Attempts left: ',
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+          ),
+          Text(
+            '$attemptsLeft',
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+          ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Color.fromARGB(255, 55, 113, 136),
         title: Text(
-            widget.singlePlayer ? 'Single Player Game' : 'Multi Player Game'),
+          widget.singlePlayer ? 'Singleplayer Game' : 'Multiplayer Game',
+          style: TextStyle(
+              fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
       ),
       body: Stack(
         children: [
@@ -242,7 +288,7 @@ class _GuessingGameScreenState extends State<GuessingGameScreen> {
                     labelText: 'Enter your guess',
                   ),
                 ),
-                SizedBox(height: 20),
+                SizedBox(height: 10),
                 ElevatedButton(
                   onPressed: _submitGuess,
                   child: Text(
@@ -250,9 +296,8 @@ class _GuessingGameScreenState extends State<GuessingGameScreen> {
                     style: TextStyle(fontSize: 20),
                   ),
                   style: ElevatedButton.styleFrom(
-                    primary: const Color.fromARGB(
-                        255, 255, 255, 255), // background color
-                    onPrimary: Colors.deepPurple, // text color
+                    primary: Color.fromARGB(255, 55, 113, 136),
+                    onPrimary: Colors.white, // text color
                   ),
                 ),
                 if (_resultMessage.isNotEmpty)
@@ -261,7 +306,7 @@ class _GuessingGameScreenState extends State<GuessingGameScreen> {
                     child: Text(
                       _resultMessage,
                       style: TextStyle(
-                          fontSize: 24,
+                          fontSize: 26,
                           fontWeight: FontWeight.bold,
                           color: Colors.red),
                     ),
@@ -269,7 +314,7 @@ class _GuessingGameScreenState extends State<GuessingGameScreen> {
                 if (!widget.singlePlayer)
                   Column(
                     children: [
-                      SizedBox(height: 20),
+                      SizedBox(height: 10),
                       Text(
                         'Player $_currentPlayer\'s turn',
                         style: TextStyle(
@@ -282,24 +327,46 @@ class _GuessingGameScreenState extends State<GuessingGameScreen> {
               ],
             ),
           ),
-          Align(
-            alignment: Alignment.topRight,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                'Attempts left: ${Game.totalAttempts - (widget.singlePlayer ? _game.singlePlayerAttempts : (_currentPlayer == 1 ? _game.player1Attempts : _game.player2Attempts))}',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black),
+          if (widget.singlePlayer)
+            Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: _buildAttemptCounter(
+                  '',
+                  Game.totalAttempts - _game.singlePlayerAttempts,
+                ),
+              ),
+            )
+          else ...[
+            Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: _buildAttemptCounter(
+                  'Player 1',
+                  Game.totalAttempts - _game.player1Attempts,
+                ),
               ),
             ),
-          ),
+            Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: _buildAttemptCounter(
+                  'Player 2',
+                  Game.totalAttempts - _game.player2Attempts,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
+
+// Score generation
 
 class Game {
   static const int totalAttempts = 10;
@@ -314,12 +381,13 @@ class Game {
   Game() : numberToGuess = Random().nextInt(100) + 1;
 
   void calculateScore(int player) {
-    singlePlayerScore = (totalAttempts - singlePlayerAttempts) * 10;
-
     if (player == 1) {
       player1Score = max(0, (totalAttempts - player1Attempts) * 10);
-    } else {
+    } else if (player == 2) {
       player2Score = max(0, (totalAttempts - player2Attempts) * 10);
+    }
+    if (player == 1 && singlePlayerAttempts > 0) {
+      singlePlayerScore = (totalAttempts - singlePlayerAttempts) * 10;
     }
   }
 }

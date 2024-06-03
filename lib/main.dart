@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import './home.dart';  // Import the MainMenuScreen
+import './entername.dart';
 
 void main() {
   runApp(MyApp());
@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MainMenuScreen(), // Set MainMenuScreen as the home screen
+      home: EnterNamePage(), // Set MainMenuScreen as the home screen
     );
   }
 }
